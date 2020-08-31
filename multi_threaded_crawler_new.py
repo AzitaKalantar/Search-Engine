@@ -10,13 +10,27 @@ from mysql.connector.connection import MySQLConnection
 from mysql.connector import pooling
 import time
 start_time = time.time()
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+from IPython.display import display
+import pickle
+from bs4.element import Comment
+
 class MultiThreadScraper:
 
     def __init__(self, base_url):
 
-        #self.base_url = base_url
+        self.base_url = base_url
         #self.domain_name = urlparse(base_url).netloc
-        #self.root_url = '{}://{}'.format(urlparse(self.base_url).scheme, urlparse(self.base_url).netloc)
+        self.root_url = '{}://{}'.format(urlparse(self.base_url).scheme, urlparse(self.base_url).netloc)
         self.pool = ThreadPoolExecutor(max_workers=20)
         self.scraped_pages = set([])
         self.to_crawl = Queue()
@@ -31,7 +45,7 @@ class MultiThreadScraper:
 
         # self.mycursor = self.mydb.cursor()
         #self.mycursor.execute("CREATE TABLE sites (url VARCHAR(255), keywords TEXT)")
-        #self.mysqlLock = threading.Lock()
+        self.niveLock = threading.Lock()
 
         self.connection_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="pynative_pool",
                                                                   pool_size=20,
@@ -40,6 +54,25 @@ class MultiThreadScraper:
                                                                   database='search_database',
                                                                   user='root',
                                                                   password='')
+
+        training_data = pd.read_csv('trainData_v2.csv')
+        training_data["label"]=9*[0] + 7 *[1] + 5*[2] + 9*[3] + 6 *[4] + 6*[5] + 9*[6]
+        X_train = np.array(training_data["doc"])
+        y_train = np.array(training_data["label"])
+
+        self.cv = CountVectorizer(max_features= 2 ** 18 ,strip_accents='ascii', token_pattern=u'(?ui)\\b\\w*[a-z]+\\w*\\b', lowercase=True, stop_words='english')
+        X_train_cv = self.cv.fit_transform(X_train)
+        self.naive_bayes = MultinomialNB()
+        self.naive_bayes.fit(X_train_cv, y_train)
+
+    def tag_visible(self,element):
+        if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
+            return False
+        if isinstance(element, Comment):
+            return False
+        return True
+
+
     def is_valid(self,url):
         """
         Checks whether `url` is a valid URL.
@@ -51,6 +84,22 @@ class MultiThreadScraper:
         soup = BeautifulSoup(html, 'lxml')
         if soup.title != None :
             title = str(soup.title.string)
+
+
+            texts = soup.findAll(text=True)
+            visible_texts = filter(self.tag_visible, texts)                
+            text_from_html = u" ".join(t.strip() for t in visible_texts)
+               
+            X_test = np.array([text_from_html])
+
+            self.niveLock.acquire()
+            X_test_cv = self.cv.transform(X_test)
+            predictions = self.naive_bayes.predict(X_test_cv)
+            self.niveLock.release()
+
+            Class = int(predictions[0])
+
+
             paragraph=""
             p=soup.find("p")
             if p != None :
@@ -67,8 +116,16 @@ class MultiThreadScraper:
             for heading in soup.find_all("h1"):
                 keywords = keywords + ' ' + heading.text.strip()
 
-            sql = "INSERT INTO sites (url,title,keywords,first_par) VALUES (%s, %s,%s,%s)"
-            val = ( murl,title , keywords,paragraph)
+
+            for tag in soup.find_all('meta'):
+                if 'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in ['description', 'keywords']:
+                    
+                    keywords = keywords + ' ' + tag.attrs['content'].strip()
+
+
+
+            sql = "INSERT INTO sites (class,url,title,keywords,first_par) VALUES (%s,%s, %s,%s,%s)"
+            val = ( Class,murl,title , keywords,paragraph)
 
             try:
 
@@ -114,7 +171,7 @@ class MultiThreadScraper:
 
         for a_tag in soup.findAll("a"):
             href = a_tag.attrs.get("href")
-            if href == "" or href is None or href.startswith('/'):
+            if href == "" or href is None:
                 # href empty tag
                 continue
             href = urljoin(murl, href)
@@ -124,7 +181,7 @@ class MultiThreadScraper:
             if not self.is_valid(href):
                 # not a valid URL
                 continue
-            if href not in self.scraped_pages:
+            if href not in self.scraped_pages and href.startswith(self.root_url):
                 self.to_crawlLock.acquire()
                 self.to_crawl.put(href)
                 self.to_crawlLock.release()
@@ -148,7 +205,7 @@ class MultiThreadScraper:
     def run_scraper(self):
         i=0
         with self.pool as ex :
-            while i<500:
+            while i<1:
                 try:
                     target_url = self.to_crawl.get(timeout=20)
                     if target_url not in self.scraped_pages :
@@ -164,7 +221,7 @@ class MultiThreadScraper:
                     continue
 if __name__ == '__main__':
 
-    s = MultiThreadScraper("https://en.wikipedia.org/wiki/Web_search_engine")
+    s = MultiThreadScraper("https://www.w3schools.com/html/")
     s.run_scraper()
 #print("--- %s seconds ---" % (time.time() - start_time))
     #print(s.root_url)
