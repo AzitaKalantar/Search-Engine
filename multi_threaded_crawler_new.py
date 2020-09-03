@@ -119,7 +119,6 @@ class MultiThreadScraper:
 
             for tag in soup.find_all('meta'):
                 if 'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in ['description', 'keywords']:
-                    
                     keywords = keywords + ' ' + tag.attrs['content'].strip()
 
 
@@ -205,7 +204,7 @@ class MultiThreadScraper:
     def run_scraper(self):
         i=0
         with self.pool as ex :
-            while i<1:
+            while i<100:
                 try:
                     target_url = self.to_crawl.get(timeout=20)
                     if target_url not in self.scraped_pages :
@@ -221,7 +220,7 @@ class MultiThreadScraper:
                     continue
 if __name__ == '__main__':
 
-    s = MultiThreadScraper("https://www.w3schools.com/html/")
+    s = MultiThreadScraper("https://www.learn-c.org/")
     s.run_scraper()
 #print("--- %s seconds ---" % (time.time() - start_time))
     #print(s.root_url)
