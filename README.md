@@ -1,5 +1,5 @@
 # Search-Engine
-This is a simple search engine program , consist of a  multi threaded web crawler which saves results in a mysql database and use machine learning classification to classify web pages  into different categories and also a Django web site to search among data.
+This is a simple search engine program , consists of a  multi threaded web crawler which saves results in a mysql database and use machine learning classification to classify web pages  into different categories and also a Django web site to search among data.
 
 this program uses naive bayse classifier to classify web pages into 7 classes which are <br />
 0 : Artificial Intelligence <br />
