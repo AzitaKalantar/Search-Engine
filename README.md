@@ -10,9 +10,9 @@ this program uses naive bayse classifier to classify web pages into 7 classes wh
 5 : Database <br />
 6 : Data Structure And Algorithm <br />
 
-cawler and classifier :AzitaKalantar/Search-Engine/ multi_threaded_crawler_new.py <br />
-trained data : AzitaKalantar/Search-EnginetrainData_v2.csv <br />
-code for search into database : AzitaKalantar/Search-Engine/search/views.py <br />
+crawler and classifier : [here](https://AzitaKalantar/Search-Engine/ multi_threaded_crawler_new.py) <br />
+trained data : [here](https://AzitaKalantar/Search-EnginetrainData_v2.csv) <br />
+code for search into database : [here](https://AzitaKalantar/Search-Engine/search/views.py) <br />
 
 
 
